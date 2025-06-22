@@ -57,7 +57,7 @@ nam_ = now.strftime('%Y')
 now = datetime.datetime.now()
 gio_hien_tai = now.strftime('%H:%M:%S')
 System.Clear()
-System.Title("REVIEWTOOL247NDK")
+System.Title("Vũ Tài (Minato)")
 System.Size(300, 200)
 banner = r"""
 
