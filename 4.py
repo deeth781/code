@@ -1,4 +1,4 @@
-import os, sys, json, asyncio, discord, subprocess, time, platform
+import os, sys, asyncio, discord, subprocess, time
 from discord.ext import commands
 from discord import app_commands
 
@@ -10,12 +10,8 @@ for module, package in REQUIRED.items():
 
 from pystyle import Colors, Colorate, Center
 
-# ==== Đường dẫn động (dùng được ở mọi hệ điều hành, kể cả Android) ====
-BASE_DIR = os.path.join(os.getcwd(), "data")
-os.makedirs(BASE_DIR, exist_ok=True)
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-TROLL_FILE = os.path.join(BASE_DIR, "troll.txt")
-DEFAULT_TROLLS = [
+# Danh sách chửi mặc định
+DEFAULT_CHUI = [
        "Alo",
 "alo",
 "đcmm",
@@ -1959,15 +1955,6 @@ DEFAULT_TROLLS = [
 
 ]
 
-# Viết file troll mặc định nếu chưa có
-if not os.path.exists(TROLL_FILE):
-    with open(TROLL_FILE, "w", encoding="utf-8") as f:
-        f.write("\\n".join(DEFAULT_TROLLS))
-
-def load_troll():
-    with open(TROLL_FILE, "r", encoding="utf-8") as f:
-        return [i.strip() for i in f if i.strip()]
-
 def banner():
     ascii = r'''
  __  __ _                  _           __  _   ___               
@@ -1982,17 +1969,11 @@ def banner():
         time.sleep(0.03)
 
 def ask_config():
-    if os.path.exists(CONFIG_FILE):
-        ans = input("🔁 Dùng lại config cũ? (y/n): ").strip().lower()
-        if ans == "y":
-            with open(CONFIG_FILE) as f: return json.load(f)
     token = input("🔑 Token bot: ").strip()
     prefix = input("⌨️ Prefix lệnh: ").strip()
     uids = input("🟢 ID người dùng được phép (cách nhau bằng dấu phẩy): ").strip()
     whitelist = [int(i.strip()) for i in uids.split(",") if i.strip().isdigit()]
-    cfg = {"token": token, "prefix": prefix, "whitelist_uid": whitelist}
-    with open(CONFIG_FILE, "w") as f: json.dump(cfg, f)
-    return cfg
+    return {"token": token, "prefix": prefix, "whitelist_uid": whitelist}
 
 def run_bot(cfg):
     intents = discord.Intents.all()
@@ -2003,12 +1984,12 @@ def run_bot(cfg):
     async def warn(inter):
         try: await inter.user.send("🚫 Bạn không có quyền dùng bot này.")
         except: pass
-    def save_cfg():
-        with open(CONFIG_FILE, "w") as f: json.dump(cfg, f)
 
     @tree.command(name="spam")
     async def spam(inter: discord.Interaction, text: str, times: str):
-        if not allowed(inter.user.id): await inter.response.send_message("🚫 Không có quyền!", ephemeral=True); return await warn(inter)
+        if not allowed(inter.user.id):
+            await inter.response.send_message("🚫 Không có quyền!", ephemeral=True)
+            return await warn(inter)
         await inter.response.send_message("✅ Bắt đầu spam", ephemeral=True)
         async def do():
             i = 0
@@ -2020,7 +2001,9 @@ def run_bot(cfg):
 
     @tree.command(name="spam_anh")
     async def spam_anh(inter: discord.Interaction, link: str, times: int):
-        if not allowed(inter.user.id): await inter.response.send_message("🚫 Không có quyền!", ephemeral=True); return await warn(inter)
+        if not allowed(inter.user.id):
+            await inter.response.send_message("🚫 Không có quyền!", ephemeral=True)
+            return await warn(inter)
         await inter.response.send_message("📸 Đang gửi ảnh", ephemeral=True)
         for _ in range(times):
             await inter.channel.send(link)
@@ -2028,13 +2011,14 @@ def run_bot(cfg):
 
     @tree.command(name="chui")
     async def chui(inter: discord.Interaction, mention: str = "", times: str = "5"):
-        if not allowed(inter.user.id): await inter.response.send_message("🚫 Không có quyền!", ephemeral=True); return await warn(inter)
-        lst = load_troll()
+        if not allowed(inter.user.id):
+            await inter.response.send_message("🚫 Không có quyền!", ephemeral=True)
+            return await warn(inter)
         await inter.response.send_message("🤬 Bắt đầu chửi", ephemeral=True)
         async def do():
             i = 0
             while times == "∞" or i < int(times):
-                msg = f"{mention} {lst[i % len(lst)]}".strip()
+                msg = f"{mention} {DEFAULT_CHUI[i % len(DEFAULT_CHUI)]}".strip()
                 await inter.channel.send(msg)
                 await asyncio.sleep(1)
                 i += 1
@@ -2061,32 +2045,33 @@ def run_bot(cfg):
 
     @tree.command(name="add_whitelist")
     async def add(inter: discord.Interaction, user_id: int):
-        if not allowed(inter.user.id): return await inter.response.send_message("❌ Không có quyền!", ephemeral=True)
+        if not allowed(inter.user.id):
+            return await inter.response.send_message("❌ Không có quyền!", ephemeral=True)
         if user_id not in cfg["whitelist_uid"]:
             cfg["whitelist_uid"].append(user_id)
-            save_cfg()
             await inter.response.send_message(f"✅ Đã thêm `{user_id}`!", ephemeral=True)
         else:
             await inter.response.send_message(f"⚠️ `{user_id}` đã có!", ephemeral=True)
 
     @tree.command(name="remove_whitelist")
     async def remove(inter: discord.Interaction, user_id: int):
-        if not allowed(inter.user.id): return await inter.response.send_message("❌ Không có quyền!", ephemeral=True)
+        if not allowed(inter.user.id):
+            return await inter.response.send_message("❌ Không có quyền!", ephemeral=True)
         if user_id in cfg["whitelist_uid"]:
             cfg["whitelist_uid"].remove(user_id)
-            save_cfg()
             await inter.response.send_message(f"🗑️ Đã xóa `{user_id}`!", ephemeral=True)
         else:
             await inter.response.send_message(f"⚠️ `{user_id}` không tồn tại!", ephemeral=True)
 
     @tree.command(name="list_whitelist")
     async def listw(inter: discord.Interaction):
-        if not allowed(inter.user.id): return await inter.response.send_message("❌ Không có quyền!", ephemeral=True)
+        if not allowed(inter.user.id):
+            return await inter.response.send_message("❌ Không có quyền!", ephemeral=True)
         ids = cfg.get("whitelist_uid", [])
         if not ids:
             await inter.response.send_message("📭 Danh sách rỗng.", ephemeral=True)
         else:
-            await inter.response.send_message("📋 Whitelist:\n" + "\\n".join([f"- `{i}`" for i in ids]), ephemeral=True)
+            await inter.response.send_message("📋 Whitelist:\n" + "\n".join([f"- `{i}`" for i in ids]), ephemeral=True)
 
     @bot.event
     async def on_ready():
